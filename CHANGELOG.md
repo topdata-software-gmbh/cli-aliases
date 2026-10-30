@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-30
+
+### Added
+- `command_tree()` — nested Typer command tree (groups vs. leaf commands),
+  complementing the flat `native_command_names()`.
+- `resolve_nested_aliases()` — command-position-aware rewriting, so aliases
+  work for subcommands too (e.g. `registry ls` when `list` is the real
+  command) without ever rewriting positional arguments. Alias chains resolve
+  with a cycle guard; scanning stops at options, `--`, and leaf commands.
+- `AliasRuntime` (`cli_aliases.runtime`) — the reusable per-tool adapter that
+  binds an `AliasConfig` (and optional built-in aliases) to a Typer app,
+  replacing the near-identical `CONFIG + expand + introspect` wrapper that
+  consumers used to copy.
+
 ## [0.1.1] - 2026-09-14
 
 ### Added

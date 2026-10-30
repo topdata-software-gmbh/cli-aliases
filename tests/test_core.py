@@ -15,6 +15,7 @@ from cli_aliases.core import (
     read_aliases,
     remove_alias,
     resolve_aliases,
+    resolve_nested_aliases,
     set_alias,
     validate_name,
     write_aliases,
@@ -107,6 +108,70 @@ def test_apply_quoted_definition_is_one_token() -> None:
 
 def test_apply_leftover_extras_append_once() -> None:
     assert _apply("one $1", ["a", "b"]) == ["one", "a", "b"]
+
+
+# ---------------------------------------------------------- nested resolver
+
+TREE = {
+    "registry": {"list": {}, "create": {}, "config": {}},
+    "drop": {},
+    "ls": {},
+    "docs": {"list": {}},
+}
+
+
+def test_nested_rewrites_subcommand_alias() -> None:
+    assert resolve_nested_aliases(
+        ["registry", "ls"], aliases={"ls": "list"}, tree=TREE
+    ) == ["registry", "list"]
+
+
+def test_nested_keeps_real_leaf_command() -> None:
+    assert resolve_nested_aliases(["ls"], aliases={"ls": "list"}, tree=TREE) == ["ls"]
+
+
+def test_nested_does_not_rewrite_positional_args() -> None:
+    assert resolve_nested_aliases(
+        ["drop", "skills"], aliases={"skills": "list"}, tree=TREE
+    ) == ["drop", "skills"]
+
+
+def test_nested_alias_keeps_options_and_extras() -> None:
+    assert resolve_nested_aliases(
+        ["registry", "ls", "--active"], aliases={"ls": "list"}, tree=TREE
+    ) == ["registry", "list", "--active"]
+
+
+def test_nested_alias_chain_resolves() -> None:
+    aliases = {"o": "d", "d": "docs list"}
+    assert resolve_nested_aliases(["o"], aliases=aliases, tree=TREE) == [
+        "docs",
+        "list",
+    ]
+
+
+def test_nested_alias_cycle_terminates() -> None:
+    resolved = resolve_nested_aliases(["a"], aliases={"a": "b", "b": "a"}, tree=TREE)
+    assert resolved in (["a"], ["b"])
+
+
+def test_nested_stops_at_options() -> None:
+    assert resolve_nested_aliases(
+        ["registry", "--help", "ls"], aliases={"ls": "list"}, tree=TREE
+    ) == ["registry", "--help", "ls"]
+
+
+def test_nested_unknown_token_passthrough() -> None:
+    assert resolve_nested_aliases(["nope"], aliases={"ls": "list"}, tree=TREE) == [
+        "nope"
+    ]
+
+
+def test_nested_without_tree_falls_back_to_root_resolver() -> None:
+    assert resolve_nested_aliases(["o"], aliases={"o": "docs list"}) == [
+        "docs",
+        "list",
+    ]
 
 
 # --------------------------------------------------------------- name/config

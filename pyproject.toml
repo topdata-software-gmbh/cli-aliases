@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cli-aliases"
-version = "0.1.0"
-description = "Git-style user-global pre-parse command aliases for Typer CLIs (shared by sb and ctx)"
+version = "0.2.0"
+description = "Git-style user-global pre-parse command aliases for Typer CLIs (shared by sb, tt, and wm)"
 requires-python = ">=3.12"
 license = "MIT"
 authors = [{ name = "Marc" }]

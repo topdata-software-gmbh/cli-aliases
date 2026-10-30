@@ -9,16 +9,21 @@ Extracted from the `ctx` (atlas) alias subsystem and shared with `sb` (super-bin
 
 ## Features
 
-- **Pre-parse argv rewriting** — single level, loop-proof, git-style.
+- **Pre-parse argv rewriting** — git-style, loop-proof.
+- **Root *and* subcommand aliases** — `resolve_nested_aliases()` walks the
+  Typer command tree, so `registry ls` can alias a real `registry list`
+  without ever rewriting positional arguments.
 - **Placeholder substitution** — `$1`, `$2`, … insert the Nth extra argument, `$@` all of
   them; leftover args append; unset placeholders collapse.
 - **Real commands always win** — pass the app's command names as `known` and a real
   command/subcommand can never be shadowed.
 - **Shipped + user aliases** — `merge_aliases()` layers user definitions over built-ins.
+- **Ready-made runtime** — `AliasRuntime(cfg, builtin=…)` binds the config and the
+  Typer tree in one small object; no per-tool adapter boilerplate.
 - **Ready-made management group** — `make_alias_app(cfg)` gives you
   `alias set|list|rm|path` with a `known_fn` reserved-name guard.
-- **Generic Typer introspection** — `native_command_names(app)` walks groups and
-  subgroups to build the `known` set (also usable as `known_fn`).
+- **Generic Typer introspection** — `native_command_names(app)` (flat) and
+  `command_tree(app)` (nested) walk groups and subgroups.
 - **Safe file handling** — atomic writes (temp file + `os.replace`), header preservation,
   malformed files degrade to `{}` instead of crashing the CLI.
 
@@ -27,7 +32,7 @@ Extracted from the `ctx` (atlas) alias subsystem and shared with `sb` (super-bin
 ```bash
 uv add cli-aliases
 # or from git:
-uv add "cli-aliases @ git+https://github.com/topdata-software-gmbh/cli-aliases.git@v0.1.0"
+uv add "cli-aliases @ git+https://github.com/topdata-software-gmbh/cli-aliases.git@v0.2.0"
 ```
 
 ## Quick start
@@ -78,10 +83,13 @@ mytool d staging                             # built-in -> mytool deploy staging
 | `config_path(cfg)` | Resolves the aliases file (`$<APP>_ALIASES` > `$XDG_CONFIG_HOME`/`~/.config` + `config_dir`). |
 | `load_aliases(cfg)` / `read_aliases(path)` | Cached / direct read; never raises. |
 | `merge_aliases(builtin, user)` | Layer user aliases over shipped ones. |
-| `resolve_aliases(argv, aliases, known)` | The pre-parse rewrite. |
+| `resolve_aliases(argv, aliases, known)` | The pre-parse rewrite (root token only). |
+| `resolve_nested_aliases(argv, aliases, tree)` | Command-position rewrite incl. subcommands, driven by `command_tree()`. |
+| `AliasRuntime(cfg, builtin)` | Adapter: `.expand(argv, app)`, `.aliases()`, `.known_names(app)`, `.tree(app)`. |
 | `validate_name(name)` | Alias-name validation (lowercase letters/digits/`_`/`-`). |
 | `set_alias` / `remove_alias` / `write_aliases` | File mutation (atomic, header-preserving). |
-| `native_command_names(app)` | Typer tree introspection. |
+| `native_command_names(app)` | Flat Typer tree introspection. |
+| `command_tree(app)` | Nested Typer tree introspection. |
 | `make_alias_app(cfg, known_fn)` | Ready-made management subgroup. |
 
 ## Development

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from cli_aliases.names import native_command_names
+from cli_aliases.names import command_tree, native_command_names
 
 
 def _app() -> typer.Typer:
@@ -43,3 +43,15 @@ def test_collects_root_commands_and_groups() -> None:
 def test_skips_the_root_itself() -> None:
     assert native_command_names(_app())  # non-empty
     assert native_command_names(typer.Typer()) == set()
+
+
+def test_command_tree_reports_leaves_and_nested_groups() -> None:
+    tree = command_tree(_app())
+    assert tree["flat"] == {}
+    assert tree["explicit"] == {}
+    assert tree["grp"]["sub"] == {}
+    assert tree["grp"]["nested"]["deep"] == {}
+
+
+def test_command_tree_empty_app() -> None:
+    assert command_tree(typer.Typer()) == {}

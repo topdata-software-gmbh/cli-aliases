@@ -21,6 +21,7 @@ from pathlib import Path
 import yaml
 
 from cli_aliases.config import AliasConfig
+from cli_aliases.names import CommandTree
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_\-]*$")
 
@@ -92,6 +93,66 @@ def resolve_aliases(
     if definition is None:
         return argv
     return _apply(definition, argv[1:])
+
+
+def resolve_nested_aliases(
+    argv: list[str],
+    aliases: Mapping[str, str] | None = None,
+    tree: Mapping[str, CommandTree] | None = None,
+) -> list[str]:
+    """Rewrite aliases at any *command position*, guided by the Typer tree.
+
+    Unlike :func:`resolve_aliases`, which only rewrites ``argv[0]``, this walks
+    the command path so subcommand aliases work too (e.g. ``registry ls`` when
+    ``list`` is the real command). *tree* is the nested mapping produced by
+    :func:`cli_aliases.names.command_tree`.
+
+    - A token that is a real child of the current group **wins**: descend into
+      a group, or stop at a leaf command (the rest are arguments).
+    - A token that is not a real command but is an alias key is substituted and
+      the result is resolved again, so an alias may expand to another alias.
+    - Scanning stops at the first option (``-x``/``--x``) or ``--``, and after
+      a leaf command, so positional values are never rewritten.
+    """
+    if not argv:
+        return argv
+    aliases = aliases or {}
+    if tree is None:
+        return resolve_aliases(argv, aliases=aliases)
+
+    tokens = list(argv)
+    seen: set[tuple[str, ...]] = set()
+    while True:
+        rewritten = _resolve_nested_once(tokens, aliases, tree)
+        if rewritten == tokens:
+            return tokens
+        if tuple(rewritten) in seen:  # alias cycle: stop, leave the last form
+            return tokens
+        seen.add(tuple(tokens))
+        tokens = rewritten
+
+
+def _resolve_nested_once(
+    argv: list[str],
+    aliases: Mapping[str, str],
+    tree: Mapping[str, CommandTree],
+) -> list[str]:
+    """One command-position pass over *argv* (descend groups, stop at leaves)."""
+    scope: Mapping[str, CommandTree] = tree
+    for index, token in enumerate(argv):
+        if token == "--" or token.startswith("-"):
+            return argv
+        child = scope.get(token)
+        if child is not None:
+            if not child:
+                return argv  # leaf command: everything after it is arguments
+            scope = child
+            continue
+        definition = aliases.get(token)
+        if definition is None:
+            return argv
+        return [*argv[:index], *_apply(definition, argv[index + 1 :])]
+    return argv
 
 
 def _apply(definition: str, extras: list[str]) -> list[str]:
